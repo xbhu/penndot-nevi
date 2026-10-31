@@ -1,0 +1,13 @@
+# Raw EV-ChART submissions and plaintext aggregates must never be committed (public repo).
+raw/
+build/
+*.parquet
+*.csv
+*.xlsx
+.DS_Store
+node_modules/
+.wrangler/
+worker/.dev.vars
+.env
+pipeline/users.local.json
+*.arrow

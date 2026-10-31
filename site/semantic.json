@@ -1,0 +1,607 @@
+{
+ "tables": {
+  "stations": {
+   "grain": "one row per NEVI-funded station on PennDOT's roster (13 stations; 10 have session data in this release)",
+   "columns": [
+    {
+     "name": "station_order",
+     "type": "BIGINT",
+     "desc": "1 = first station to open"
+    },
+    {
+     "name": "station_id",
+     "type": "VARCHAR",
+     "desc": "EV-ChART station identifier (text). Join key for every other table"
+    },
+    {
+     "name": "awardee",
+     "type": "VARCHAR",
+     "desc": "NEVI awardee / site host (e.g. Pilot Travel Centers, Love's, Tesla Inc.)"
+    },
+    {
+     "name": "network_operator",
+     "type": "VARCHAR",
+     "desc": "Charging network: EVgo, ChargePoint, Tesla, Francis Energy"
+    },
+    {
+     "name": "address",
+     "type": "VARCHAR",
+     "desc": "Street address"
+    },
+    {
+     "name": "city",
+     "type": "VARCHAR",
+     "desc": "City"
+    },
+    {
+     "name": "operational_date",
+     "type": "TIMESTAMP",
+     "desc": "Date the station opened"
+    },
+    {
+     "name": "om_end_date",
+     "type": "TIMESTAMP",
+     "desc": "End of the 5-year O&M obligation"
+    },
+    {
+     "name": "station_name",
+     "type": "VARCHAR",
+     "desc": "Short town name used throughout the dashboard, e.g. 'Pittston'. Prefer this in answers"
+    },
+    {
+     "name": "lat",
+     "type": "DOUBLE",
+     "desc": "Approximate latitude"
+    },
+    {
+     "name": "lon",
+     "type": "DOUBLE",
+     "desc": "Approximate longitude"
+    },
+    {
+     "name": "interstate",
+     "type": "VARCHAR",
+     "desc": "Nearest Alternative Fuel Corridor interstate"
+    },
+    {
+     "name": "n_ports",
+     "type": "BIGINT",
+     "desc": "Number of charging ports (all stations have 4)"
+    },
+    {
+     "name": "first_session_date",
+     "type": "TIMESTAMP",
+     "desc": "First session in the data"
+    },
+    {
+     "name": "last_session_date",
+     "type": "TIMESTAMP",
+     "desc": "Last session in the data"
+    },
+    {
+     "name": "has_session_data",
+     "type": "BOOLEAN",
+     "desc": "FALSE for stations that opened after the data cut-off (Mifflinville, New Castle, Brookville)"
+    }
+   ]
+  },
+  "daily_station": {
+   "grain": "one row per station per local calendar day (America/New_York), from opening through its last reported day; zero-session days included",
+   "columns": [
+    {
+     "name": "station_id",
+     "type": "VARCHAR",
+     "desc": ""
+    },
+    {
+     "name": "date",
+     "type": "TIMESTAMP",
+     "desc": "Local date"
+    },
+    {
+     "name": "sessions_total",
+     "type": "BIGINT",
+     "desc": "All sessions attempted"
+    },
+    {
+     "name": "sessions_success",
+     "type": "BIGINT",
+     "desc": "Successful sessions (see rule)"
+    },
+    {
+     "name": "energy_kwh",
+     "type": "DOUBLE",
+     "desc": "kWh delivered by successful sessions"
+    },
+    {
+     "name": "avg_energy_kwh",
+     "type": "DOUBLE",
+     "desc": "Mean kWh per successful session"
+    },
+    {
+     "name": "avg_power_kw",
+     "type": "DOUBLE",
+     "desc": "Mean of session average power (kW)"
+    },
+    {
+     "name": "avg_duration_min",
+     "type": "DOUBLE",
+     "desc": "Mean plug-in duration (min)"
+    },
+    {
+     "name": "ports_used",
+     "type": "BIGINT",
+     "desc": "Distinct ports with a successful session"
+    },
+    {
+     "name": "sessions_failed",
+     "type": "BIGINT",
+     "desc": "sessions_total - sessions_success"
+    },
+    {
+     "name": "busy_port_minutes",
+     "type": "DOUBLE",
+     "desc": "Sum over ports of minutes occupied by a successful session"
+    },
+    {
+     "name": "all_ports_busy_minutes",
+     "type": "DOUBLE",
+     "desc": "Minutes in the day when every port was occupied (queue risk)"
+    },
+    {
+     "name": "peak_concurrent",
+     "type": "BIGINT",
+     "desc": "Max ports simultaneously in use"
+    },
+    {
+     "name": "outage_port_minutes",
+     "type": "DOUBLE",
+     "desc": "Sum over ports of reported outage minutes that day (no exclusions)"
+    },
+    {
+     "name": "n_ports",
+     "type": "BIGINT",
+     "desc": ""
+    },
+    {
+     "name": "port_utilization",
+     "type": "DOUBLE",
+     "desc": "busy_port_minutes / (n_ports * 1440), 0-1"
+    },
+    {
+     "name": "month",
+     "type": "TIMESTAMP",
+     "desc": "First day of month (timestamp)"
+    },
+    {
+     "name": "quarter",
+     "type": "VARCHAR",
+     "desc": "e.g. '2025Q1'"
+    }
+   ]
+  },
+  "monthly_port": {
+   "grain": "one row per port per month from the station's opening month",
+   "columns": [
+    {
+     "name": "station_id",
+     "type": "VARCHAR",
+     "desc": ""
+    },
+    {
+     "name": "port_label",
+     "type": "VARCHAR",
+     "desc": "P1..P4 (stable within a station)"
+    },
+    {
+     "name": "month",
+     "type": "TIMESTAMP",
+     "desc": "First day of month"
+    },
+    {
+     "name": "sessions_total",
+     "type": "BIGINT",
+     "desc": ""
+    },
+    {
+     "name": "sessions_success",
+     "type": "BIGINT",
+     "desc": ""
+    },
+    {
+     "name": "energy_kwh",
+     "type": "DOUBLE",
+     "desc": ""
+    },
+    {
+     "name": "busy_minutes",
+     "type": "DOUBLE",
+     "desc": "Minutes in use"
+    },
+    {
+     "name": "outage_minutes",
+     "type": "DOUBLE",
+     "desc": "Reported outage minutes (Module 4), split across days, no exclusions"
+    },
+    {
+     "name": "outage_events",
+     "type": "BIGINT",
+     "desc": "Outage events starting this month"
+    },
+    {
+     "name": "minutes_in_service",
+     "type": "DOUBLE",
+     "desc": "Minutes the port was in service this month (partial first month)"
+    },
+    {
+     "name": "uptime_pct",
+     "type": "DOUBLE",
+     "desc": "Raw monthly availability = 100*(1 - outage_minutes/minutes_in_service). Does NOT apply NEVI excluded outages, so it is a conservative lower bound"
+    }
+   ]
+  },
+  "port_uptime_reported": {
+   "grain": "one row per port: the latest cumulative Module 3 uptime report",
+   "columns": [
+    {
+     "name": "station_id",
+     "type": "VARCHAR",
+     "desc": ""
+    },
+    {
+     "name": "port_label",
+     "type": "VARCHAR",
+     "desc": ""
+    },
+    {
+     "name": "reporting_start",
+     "type": "TIMESTAMP",
+     "desc": ""
+    },
+    {
+     "name": "reporting_end",
+     "type": "TIMESTAMP",
+     "desc": ""
+    },
+    {
+     "name": "reported_uptime_pct",
+     "type": "DOUBLE",
+     "desc": "Operator-reported 12-month uptime; NULL when the port has < 1 year of history"
+    },
+    {
+     "name": "total_outage_min",
+     "type": "DOUBLE",
+     "desc": "Cumulative outage minutes since reporting_start"
+    },
+    {
+     "name": "excluded_outage_min",
+     "type": "DOUBLE",
+     "desc": "Outage minutes excluded under 23 CFR 680.116 (utility outage, vandalism, etc.)"
+    },
+    {
+     "name": "uptime_since_start_pct",
+     "type": "DOUBLE",
+     "desc": "100*(1 - (total_outage_min - excluded_outage_min)/minutes since reporting_start). NEVI formula applied to the whole period since the port's first report"
+    },
+    {
+     "name": "uptime_nevi_pct",
+     "type": "DOUBLE",
+     "desc": "Compliance figure to use: the operator-reported 12-month uptime when available, otherwise uptime_since_start_pct"
+    }
+   ]
+  },
+  "outage_events": {
+   "grain": "one row per reported outage event per port",
+   "columns": [
+    {
+     "name": "station_id",
+     "type": "VARCHAR",
+     "desc": ""
+    },
+    {
+     "name": "port_label",
+     "type": "VARCHAR",
+     "desc": ""
+    },
+    {
+     "name": "start_date",
+     "type": "TIMESTAMP",
+     "desc": "Local start date"
+    },
+    {
+     "name": "end_date",
+     "type": "TIMESTAMP",
+     "desc": "Local end date"
+    },
+    {
+     "name": "duration_min",
+     "type": "DOUBLE",
+     "desc": ""
+    },
+    {
+     "name": "duration_hours",
+     "type": "DOUBLE",
+     "desc": ""
+    }
+   ]
+  },
+  "quarterly_station": {
+   "grain": "one row per station per quarter, computed from the raw submissions by this pipeline",
+   "columns": [
+    {
+     "name": "station_id",
+     "type": "VARCHAR",
+     "desc": ""
+    },
+    {
+     "name": "quarter",
+     "type": "VARCHAR",
+     "desc": ""
+    },
+    {
+     "name": "sessions_total",
+     "type": "BIGINT",
+     "desc": ""
+    },
+    {
+     "name": "sessions_success",
+     "type": "BIGINT",
+     "desc": ""
+    },
+    {
+     "name": "energy_kwh",
+     "type": "DOUBLE",
+     "desc": ""
+    },
+    {
+     "name": "avg_energy_kwh",
+     "type": "DOUBLE",
+     "desc": ""
+    },
+    {
+     "name": "median_power_kw",
+     "type": "DOUBLE",
+     "desc": ""
+    },
+    {
+     "name": "avg_duration_min",
+     "type": "DOUBLE",
+     "desc": ""
+    },
+    {
+     "name": "days_in_service",
+     "type": "BIGINT",
+     "desc": ""
+    },
+    {
+     "name": "port_utilization",
+     "type": "DOUBLE",
+     "desc": "Mean daily port utilization 0-1"
+    },
+    {
+     "name": "all_ports_busy_minutes",
+     "type": "DOUBLE",
+     "desc": ""
+    },
+    {
+     "name": "outage_port_minutes",
+     "type": "DOUBLE",
+     "desc": ""
+    },
+    {
+     "name": "sessions_failed",
+     "type": "BIGINT",
+     "desc": ""
+    },
+    {
+     "name": "success_rate",
+     "type": "DOUBLE",
+     "desc": "0-1"
+    },
+    {
+     "name": "sessions_per_day",
+     "type": "DOUBLE",
+     "desc": "Successful sessions per day in service"
+    },
+    {
+     "name": "uptime_pct_raw",
+     "type": "DOUBLE",
+     "desc": "Raw quarterly availability across all ports, no exclusions"
+    }
+   ]
+  },
+  "quarterly_reported": {
+   "grain": "one row per station per quarter, exactly as reported in PennDOT's quarterly summary workbook",
+   "columns": [
+    {
+     "name": "station_id",
+     "type": "VARCHAR",
+     "desc": ""
+    },
+    {
+     "name": "quarter",
+     "type": "VARCHAR",
+     "desc": ""
+    },
+    {
+     "name": "operating_days",
+     "type": "BIGINT",
+     "desc": ""
+    },
+    {
+     "name": "rolling_12mo_uptime_pct",
+     "type": "DOUBLE",
+     "desc": "PennDOT-reported 12-month rolling uptime (%)"
+    },
+    {
+     "name": "sessions_success",
+     "type": "BIGINT",
+     "desc": ""
+    },
+    {
+     "name": "sessions_failed",
+     "type": "BIGINT",
+     "desc": ""
+    },
+    {
+     "name": "success_rate",
+     "type": "DOUBLE",
+     "desc": "0-1"
+    },
+    {
+     "name": "energy_kwh",
+     "type": "DOUBLE",
+     "desc": ""
+    }
+   ]
+  },
+  "hourly_profile": {
+   "grain": "successful sessions by station, quarter, day of week, and local start hour",
+   "columns": [
+    {
+     "name": "station_id",
+     "type": "VARCHAR",
+     "desc": ""
+    },
+    {
+     "name": "quarter",
+     "type": "VARCHAR",
+     "desc": ""
+    },
+    {
+     "name": "day_of_week",
+     "type": "INTEGER",
+     "desc": "0=Monday ... 6=Sunday"
+    },
+    {
+     "name": "hour",
+     "type": "INTEGER",
+     "desc": "Local start hour 0-23"
+    },
+    {
+     "name": "sessions",
+     "type": "BIGINT",
+     "desc": ""
+    },
+    {
+     "name": "energy_kwh",
+     "type": "DOUBLE",
+     "desc": ""
+    }
+   ]
+  },
+  "failures_quarterly": {
+   "grain": "failed sessions by station, quarter, and failure type",
+   "columns": [
+    {
+     "name": "station_id",
+     "type": "VARCHAR",
+     "desc": ""
+    },
+    {
+     "name": "quarter",
+     "type": "VARCHAR",
+     "desc": ""
+    },
+    {
+     "name": "failure_type",
+     "type": "VARCHAR",
+     "desc": "ChargeX error code (CX002, CX009, ...), 'other', 'Corrupted', or 'no_error_but_<1kWh' (session ended with no error code but delivered < 1 kWh)"
+    },
+    {
+     "name": "sessions",
+     "type": "BIGINT",
+     "desc": ""
+    }
+   ]
+  },
+  "payments_quarterly": {
+   "grain": "successful sessions by station, quarter, and payment method",
+   "columns": [
+    {
+     "name": "station_id",
+     "type": "VARCHAR",
+     "desc": ""
+    },
+    {
+     "name": "quarter",
+     "type": "VARCHAR",
+     "desc": ""
+    },
+    {
+     "name": "payment_method",
+     "type": "VARCHAR",
+     "desc": "credit_card_terminal, phone_online, membership, roaming, other, none"
+    },
+    {
+     "name": "sessions",
+     "type": "BIGINT",
+     "desc": ""
+    }
+   ]
+  },
+  "session_distribution": {
+   "grain": "histogram of successful sessions per station; one row per (station, metric, bin)",
+   "columns": [
+    {
+     "name": "station_id",
+     "type": "VARCHAR",
+     "desc": ""
+    },
+    {
+     "name": "metric",
+     "type": "VARCHAR",
+     "desc": "'energy_kwh' | 'power_kw' | 'duration_min'"
+    },
+    {
+     "name": "bin_lo",
+     "type": "DOUBLE",
+     "desc": "inclusive"
+    },
+    {
+     "name": "bin_hi",
+     "type": "DOUBLE",
+     "desc": "exclusive"
+    },
+    {
+     "name": "sessions",
+     "type": "BIGINT",
+     "desc": ""
+    },
+    {
+     "name": "is_top_bin",
+     "type": "BOOLEAN",
+     "desc": "TRUE for the last bin, which also holds every value above it"
+    }
+   ]
+  }
+ },
+ "rules": [
+  "Data covers 2023-12-22 to 2025-03-31 (EV-ChART quarterly submissions through 2025 Q1). Say so if a question asks about later dates.",
+  "Successful session = no error code AND >= 1 kWh delivered. Failed = everything else.",
+  "NEVI uptime requirement (23 CFR 680.116): each port >= 97% over a trailing 12 months, with excluded outages removed. Use port_uptime_reported.uptime_nevi_pct for compliance; monthly_port.uptime_pct is a raw lower bound.",
+  "NEVI minimum power: 150 kW per port simultaneously. Session power is limited by the vehicle as well as the charger, so median session power below 150 kW is NOT by itself a violation.",
+  "Tesla (Aston) reports zero failed sessions - Tesla's submission appears not to include failures; flag this when comparing reliability.",
+  "Always join to stations to show station_name; never show raw station_id alone.",
+  "Quarters are strings like '2025Q1'. Months are timestamps at the first of the month.",
+  "Session-level records are NOT available - only these aggregates. Do not invent columns."
+ ],
+ "examples": [
+  {
+   "q": "Which ports are below the 97% uptime requirement?",
+   "sql": "SELECT s.station_name, p.port_label, p.uptime_nevi_pct, p.reporting_start, p.reporting_end\nFROM port_uptime_reported p JOIN stations s USING (station_id)\nWHERE p.uptime_nevi_pct < 97 ORDER BY p.uptime_nevi_pct"
+  },
+  {
+   "q": "Monthly successful sessions statewide",
+   "sql": "SELECT month, SUM(sessions_success) AS sessions FROM daily_station GROUP BY month ORDER BY month"
+  },
+  {
+   "q": "What are the main failure causes at Francis Energy stations?",
+   "sql": "SELECT s.station_name, f.failure_type, SUM(f.sessions) AS sessions\nFROM failures_quarterly f JOIN stations s USING (station_id)\nWHERE s.network_operator = 'Francis Energy' GROUP BY ALL ORDER BY s.station_name, sessions DESC"
+  },
+  {
+   "q": "Busiest hour of the week at Aston",
+   "sql": "SELECT day_of_week, hour, SUM(sessions) AS sessions FROM hourly_profile h JOIN stations s USING (station_id)\nWHERE s.station_name = 'Aston' GROUP BY ALL ORDER BY sessions DESC LIMIT 5"
+  }
+ ]
+}

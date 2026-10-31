@@ -1,0 +1,19 @@
+name = "penndot-nevi-ask"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+workers_dev = true
+
+[ai]
+binding = "AI"
+
+[vars]
+ALLOWED_ORIGINS = "https://xbhu.github.io"
+# ANTHROPIC_MODEL = "claude-sonnet-5-5"
+# WORKERS_AI_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+
+[observability]
+enabled = true
+
+# Secrets (set with `npx wrangler secret put <NAME>` or in the dashboard):
+#   ACCESS_TOKENS      JSON map from pipeline/encrypt.py (build/access_tokens.json)
+#   ANTHROPIC_API_KEY  optional; when set, Claude is used instead of Workers AI

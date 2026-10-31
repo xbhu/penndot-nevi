@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>PA NEVI Charging Performance</title>
+<meta name="description" content="Performance of Pennsylvania's NEVI-funded fast-charging stations from EV-ChART submissions. A Smart Mobility Lab (Penn State) demo.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23006a4e'/%3E%3Cpath d='M18 4 8 18h7l-2 10 11-15h-7z' fill='white'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="vendor/leaflet.css">
+<link rel="stylesheet" href="styles.css">
+<script src="config.js"></script>
+<script src="vendor/echarts.min.js" defer></script>
+<script src="vendor/leaflet.js" defer></script>
+<script type="module" src="app.js"></script>
+</head>
+<body>
+<header class="sign" role="banner">
+  <div class="sign-face">
+    <div class="sign-shield" aria-hidden="true">
+      <svg viewBox="0 0 40 40" width="40" height="40"><path d="M23 3 9 22h10l-3 15 15-21H21z" fill="currentColor"/></svg>
+    </div>
+    <div class="sign-text">
+      <h1>Pennsylvania NEVI fast charging</h1>
+      <p class="sign-sub" id="sign-sub">Station performance from EV-ChART quarterly reports</p>
+    </div>
+    <button class="sign-logout" id="logout" hidden>Sign out</button>
+  </div>
+</header>
+
+<nav class="tabs" id="tabs" hidden aria-label="Sections">
+  <a href="#overview">Overview</a>
+  <a href="#reliability">Reliability</a>
+  <a href="#usage">Usage</a>
+  <a href="#stations">Stations</a>
+  <a href="#ask">Ask the data</a>
+  <a href="#notes">Data notes</a>
+</nav>
+
+<main id="main">
+  <section class="login" id="login">
+    <form id="login-form" autocomplete="on">
+      <h2>Sign in to view the data</h2>
+      <p>The station data on this page is encrypted. Your password decrypts it in this browser; nothing is sent to a server.</p>
+      <label>Username <input name="username" id="u" autocomplete="username" required autocapitalize="none" spellcheck="false"></label>
+      <label>Password <input name="password" id="p" type="password" autocomplete="current-password" required></label>
+      <button type="submit" id="login-btn">Sign in</button>
+      <p class="login-msg" id="login-msg" role="status" aria-live="polite"></p>
+    </form>
+  </section>
+  <div id="view" hidden></div>
+</main>
+
+<footer class="foot">
+  <p>Prepared by the <a href="https://lab.mobilitypsu.com/">Smart Mobility Lab</a>, Penn State. Source: EV-ChART quarterly submissions for NEVI-funded stations, shared by PennDOT. Demonstration only; not an official PennDOT product.</p>
+</footer>
+</body>
+</html>
