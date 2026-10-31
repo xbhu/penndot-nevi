@@ -4,7 +4,7 @@
 //
 // Providers (chosen automatically):
 //   - ANTHROPIC_API_KEY secret set  -> Claude via the Messages API (better SQL)
-//   - otherwise                     -> Cloudflare Workers AI binding "AI" (free daily allocation)
+//   - otherwise                     -> Cloudflare Workers AI binding "AI" (free daily allocation), default gpt-oss-120b
 //
 // Secrets / vars:
 //   ACCESS_TOKENS     JSON {"username": sha256("nevi-worker:username:password")}  (secret)
@@ -14,7 +14,7 @@
 //   WORKERS_AI_MODEL  optional default model (var); requests may pick one from WORKERS_AI_MODELS
 import { SCHEMA } from "./semantic.js";
 
-const DEFAULT_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
+const DEFAULT_MODEL = "@cf/openai/gpt-oss-120b"; // best SQL accuracy in our side-by-side test (Oct 2026)
 // Models a client may request explicitly (for side-by-side evaluation). Anything else falls back to the default.
 const WORKERS_AI_MODELS = [
   "@cf/meta/llama-3.3-70b-instruct-fp8-fast", "@cf/openai/gpt-oss-120b", "@cf/qwen/qwen2.5-coder-32b-instruct",

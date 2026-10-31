@@ -9,7 +9,7 @@ binding = "AI"
 [vars]
 ALLOWED_ORIGINS = "https://xbhu.github.io"
 # ANTHROPIC_MODEL = "claude-sonnet-5-5"
-# WORKERS_AI_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+# WORKERS_AI_MODEL = "@cf/openai/gpt-oss-120b"
 
 [observability]
 enabled = true
