@@ -184,13 +184,13 @@ VIEWS.overview = async (view) => {
     <div class="tiles">
       <div class="tile"><div class="label">Successful sessions</div><div class="value">${fmt.int(k.s)}</div><div class="note">All stations, all quarters</div></div>
       <div class="tile"><div class="label">Energy delivered</div><div class="value">${fmt.dec(k.mwh, 0)} MWh</div><div class="note">≈ ${fmt.compact(k.mwh * 1000 * 3)} EV miles at 3 mi/kWh</div></div>
-      <div class="tile"><div class="label">Session success rate</div><div class="value">${fmt.pct(k.sr)}</div><div class="note">≥ 1 kWh and no error code</div></div>
-      <div class="tile"><div class="label">Ports meeting 97% uptime</div><div class="value">${pc.ok} of ${pc.n}</div><div class="note">NEVI method, exclusions applied</div></div>
+      <div class="tile"><div class="label">Charge success</div><div class="value">${fmt.pct(k.sr)}</div><div class="note">Share of plug-ins that delivered energy</div></div>
+      <div class="tile"><div class="label">Ports meeting 97% uptime</div><div class="value">${pc.ok} of ${pc.n}</div><div class="note">Share of time each port was online</div></div>
     </div>`);
   const g = grid(view);
   await card(g, {
     title: "Where the stations are", cls: "c7", table: false,
-    sub: "Circle area is successful sessions per day in Q1 2025; color is the lowest port uptime at the station.",
+    sub: "Circle size is successful sessions per day in Q1 2025; color is the uptime of the station's weakest port.",
     sql: `SELECT s.station_id, s.station_name, s.network_operator, s.awardee, s.city, s.interstate, s.lat, s.lon, s.has_session_data,
   strftime(s.operational_date, '%Y-%m-%d') AS opened, q.sessions_per_day, q.success_rate, u.min_uptime
 FROM stations s
@@ -211,7 +211,7 @@ ORDER BY s.station_order`,
         const m = L.circleMarker([r.lat, r.lon], { radius: rad, color: css("--surface"), weight: 2, fillColor: st.color, fillOpacity: 0.9 }).addTo(map);
         m.bindTooltip(r.station_name, { direction: "top", offset: [0, -rad] });
         m.bindPopup(`<b>${esc(r.station_name)}</b><br>${esc(r.network_operator)} · ${esc(r.awardee)}<br>${esc(r.interstate)} · opened ${r.opened}<br>` +
-          (r.has_session_data ? `${fmt.dec(r.sessions_per_day)} sessions/day (Q1 2025)<br>${statusHTML(r.min_uptime, "Lowest port " + fmt.pctv(r.min_uptime))}<br><a href="#stations/${encodeURIComponent(r.station_id)}">Station details</a>` : "Opened after the data cut-off"));
+          (r.has_session_data ? `${fmt.dec(r.sessions_per_day)} sessions/day (Q1 2025)<br>${statusHTML(r.min_uptime, "Weakest port uptime " + fmt.pctv(r.min_uptime))}<br><a href="#stations/${encodeURIComponent(r.station_id)}">Station details</a>` : "Opened after the data cut-off"));
         pts.push([r.lat, r.lon]);
       });
       map.fitBounds(pts, { padding: [24, 24] });
@@ -220,7 +220,7 @@ ORDER BY s.station_order`,
   });
   await card(g, {
     title: "Stations", cls: "c5", table: false,
-    sub: "Select a station for details.",
+    sub: "<b>Charge success</b>: when a driver plugged in, did they get energy? <b>Uptime</b>: how much of the time was the station's weakest port online? NEVI sets 97% for uptime. A station can score well on one and poorly on the other. Select a station for details.",
     sql: `SELECT s.station_id, s.station_name, s.network_operator, strftime(s.operational_date, '%Y-%m-%d') AS opened,
   q.sessions_per_day, t.success_rate, u.min_uptime
 FROM stations s
@@ -229,7 +229,7 @@ LEFT JOIN (SELECT station_id, SUM(sessions_success) / SUM(sessions_total) AS suc
 LEFT JOIN (SELECT station_id, MIN(uptime_nevi_pct) AS min_uptime FROM port_uptime_reported GROUP BY 1) u USING (station_id)
 ORDER BY q.sessions_per_day DESC NULLS LAST`,
     render: (rows, body) => {
-      body.innerHTML = `<div class="tbl-wrap"><table><thead><tr><th>Station</th><th class="n">Sessions/day</th><th class="n hide-sm">Success</th><th>Lowest port uptime</th></tr></thead><tbody>${rows.map((r) => `
+      body.innerHTML = `<div class="tbl-wrap"><table><thead><tr><th>Station</th><th class="n">Sessions/day</th><th class="n hide-sm">Charge success</th><th>Uptime, weakest port</th></tr></thead><tbody>${rows.map((r) => `
         <tr class="${r.success_rate != null ? "click" : ""}" data-id="${esc(r.station_id)}" tabindex="${r.success_rate != null ? 0 : -1}">
           <td><b>${esc(r.station_name)}</b><br><span style="color:var(--muted);font-size:13px">${esc(r.network_operator)}, since ${new Date(r.opened + "T12:00").toLocaleDateString("en-US", { month: "short", year: "numeric" })}</span></td>
           <td class="n">${r.sessions_per_day != null ? fmt.dec(r.sessions_per_day) : "–"}</td>
@@ -273,7 +273,7 @@ VIEWS.reliability = async (view) => {
   view.insertAdjacentHTML("beforeend", `<p class="lede">NEVI requires every port to be available at least <strong>97%</strong> of the time over a year, after excluding outages outside the operator's control (23 CFR 680.116). Monthly figures below count every reported outage, so they are a conservative lower bound.</p>`);
   const g = grid(view);
   await card(g, {
-    title: "Lowest port availability each month",
+    title: "Uptime of the weakest port, by month",
     sub: "Each cell is the worst of a station's four ports that month, from reported outage minutes with no exclusions. Hover for every port.",
     sql: `SELECT s.station_name, s.station_order, strftime(m.month, '%Y-%m') AS month, MIN(m.uptime_pct) AS min_uptime,
   string_agg(m.port_label || ' ' || round(m.uptime_pct, 1) || '%', ', ' ORDER BY m.port_label) AS ports
@@ -285,7 +285,7 @@ GROUP BY ALL ORDER BY s.station_order, month`,
       const names = [...new Set(rows.map((r) => r.station_name))].reverse();
       body.innerHTML = `<div class="chart tall"></div>` + legendHTML([["≥ 97%", css("--good")], ["90–97%", css("--warn")], ["< 90%", css("--crit")]]);
       echart($(".chart", body), () => ({
-        tooltip: { formatter: (p) => { const r = rows.find((x) => x.station_name === names[p.value[1]] && x.month === months[p.value[0]]); return `<b>${esc(r.station_name)}</b>, ${fmt.month(r.month)}<br>${statusHTML(r.min_uptime, "Lowest port " + fmt.pctv(r.min_uptime, 2))}<br>${esc(r.ports)}`; } },
+        tooltip: { formatter: (p) => { const r = rows.find((x) => x.station_name === names[p.value[1]] && x.month === months[p.value[0]]); return `<b>${esc(r.station_name)}</b>, ${fmt.month(r.month)}<br>${statusHTML(r.min_uptime, "Weakest port " + fmt.pctv(r.min_uptime, 2))}<br>${esc(r.ports)}`; } },
         grid: { left: 8, right: 8, top: 8, bottom: 8 },
         xAxis: { type: "category", data: months, splitLine: { show: false }, axisLabel: { formatter: (v) => fmt.month(v).replace(" ", "\n") } },
         yAxis: { type: "category", data: names, splitLine: { show: false } },
@@ -318,8 +318,8 @@ ORDER BY o.duration_min DESC LIMIT 12`,
     },
   });
   await card(g, {
-    title: "Session success rate", cls: "c6",
-    sub: "Share of attempted sessions that delivered at least 1 kWh with no error code.",
+    title: "Charge success rate", cls: "c6",
+    sub: "Of all plug-ins, the share that delivered at least 1 kWh with no error. This measures the driver's experience while the port is online; uptime above measures whether it is online at all.",
     sql: `SELECT s.station_name, SUM(d.sessions_success) / SUM(d.sessions_total) AS success_rate, SUM(d.sessions_total) AS attempts
 FROM daily_station d JOIN stations s USING (station_id)
 GROUP BY ALL ORDER BY success_rate`,
@@ -499,8 +499,8 @@ VIEWS.stations = async (view, arg) => {
     <div class="tiles">
       <div class="tile"><div class="label">Successful sessions</div><div class="value">${fmt.int(k.s)}</div><div class="note">${fmt.int(k.n_days)} days of data</div></div>
       <div class="tile"><div class="label">Sessions per day</div><div class="value">${fmt.dec(k.s / k.n_days)}</div><div class="note">Average since opening</div></div>
-      <div class="tile"><div class="label">Success rate</div><div class="value">${fmt.pct(k.sr)}</div><div class="note">${fmt.compact(k.kwh)} kWh delivered</div></div>
-      <div class="tile"><div class="label">Lowest port uptime</div><div class="value">${fmt.pctv(u.u)}</div><div class="note">${statusHTML(u.u)}</div></div>
+      <div class="tile"><div class="label">Charge success</div><div class="value">${fmt.pct(k.sr)}</div><div class="note">${fmt.compact(k.kwh)} kWh delivered</div></div>
+      <div class="tile"><div class="label">Uptime, weakest port</div><div class="value">${fmt.pctv(u.u)}</div><div class="note">${statusHTML(u.u)}</div></div>
     </div>`);
   const g = grid(view);
   await card(g, {
@@ -673,7 +673,8 @@ VIEWS.notes = async (view) => {
     </ul>
     <h3>Definitions</h3>
     <ul>
-      <li><b>Successful session</b>: no error code and at least 1 kWh delivered.</li>
+      <li><b>Charge success</b> (per plug-in): the share of charging attempts with no error code and at least 1 kWh delivered. It answers "when a driver plugged in, did it work?"</li>
+      <li><b>Uptime</b> (per port, over time): the share of minutes a port was online. It answers "was the charger available?" and is the measure NEVI regulates (97%). The two are independent: at Aston, every recorded charge succeeded, yet its weakest port was online only 94% of the time.</li>
       <li><b>Uptime (NEVI method)</b>: 100 × (1 − (outage − excluded outage) / minutes in period), per port, from the operator's cumulative Module 3 report. Below one year of history this uses the period since opening.</li>
       <li><b>Monthly availability</b>: the same formula from Module 4 outage events with no exclusions, so it can read lower than the NEVI figure.</li>
       <li><b>Port utilization</b>: minutes a port is occupied by a successful session ÷ minutes in the day.</li>
