@@ -582,6 +582,7 @@
   "NEVI uptime requirement (23 CFR 680.116): each port >= 97% over a trailing 12 months, with excluded outages removed. Use port_uptime_reported.uptime_nevi_pct for compliance; monthly_port.uptime_pct is a raw lower bound.",
   "NEVI minimum power: 150 kW per port simultaneously. Session power is limited by the vehicle as well as the charger, so median session power below 150 kW is NOT by itself a violation.",
   "Tesla (Aston) reports zero failed sessions - Tesla's submission appears not to include failures; flag this when comparing reliability.",
+  "Scales: *_pct columns are 0-100 (97% is written 97, never 0.97); *_rate columns and port_utilization are 0-1 fractions.",
   "Always join to stations to show station_name; never show raw station_id alone.",
   "Quarters are strings like '2025Q1'. Months are timestamps at the first of the month.",
   "Session-level records are NOT available - only these aggregates. Do not invent columns."

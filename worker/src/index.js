@@ -11,8 +11,16 @@
 //   ALLOWED_ORIGINS   comma-separated origins allowed to call this worker          (var)
 //   ANTHROPIC_API_KEY optional                                                    (secret)
 //   ANTHROPIC_MODEL   optional, default claude-sonnet-5-5                         (var)
-//   WORKERS_AI_MODEL  optional, default @cf/meta/llama-3.3-70b-instruct-fp8-fast  (var)
+//   WORKERS_AI_MODEL  optional default model (var); requests may pick one from WORKERS_AI_MODELS
 import { SCHEMA } from "./semantic.js";
+
+const DEFAULT_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
+// Models a client may request explicitly (for side-by-side evaluation). Anything else falls back to the default.
+const WORKERS_AI_MODELS = [
+  "@cf/meta/llama-3.3-70b-instruct-fp8-fast", "@cf/openai/gpt-oss-120b", "@cf/qwen/qwen2.5-coder-32b-instruct",
+  "@cf/deepseek-ai/deepseek-v4-flash-0731", "@cf/meta/llama-4-scout-17b-16e-instruct", "@cf/mistralai/mistral-small-3.1-24b-instruct",
+  "@cf/zai-org/glm-4.7-flash", "@cf/qwen/qwen3-30b-a3b-fp8",
+];
 
 const SQL_SYSTEM = `You translate questions about Pennsylvania NEVI electric-vehicle charging stations into a single DuckDB SQL query.
 
@@ -23,7 +31,7 @@ Instructions:
 - If the question cannot be answered from these tables, return {"sql": null, "explanation": "<why, and what the data does cover>"}.
 - One read-only SELECT (CTEs allowed). No semicolons. DuckDB dialect.
 - Join stations to show station_name. Round decimals sensibly. Order results meaningfully. LIMIT 200 unless the question needs every row.
-- Percentages stored as 0-1 fractions are named *_rate or port_utilization; *_pct columns are already 0-100.
+- SCALES: columns ending in _pct are on a 0-100 scale (the 97% NEVI threshold is written 97, NEVER 0.97). Columns ending in _rate and port_utilization are 0-1 fractions.
 - If a previous attempt failed, fix that SQL using the error message.`;
 
 const ANSWER_SYSTEM = `You write a short, factual answer to a question about Pennsylvania NEVI charging stations, using ONLY the query result provided.
@@ -31,7 +39,8 @@ const ANSWER_SYSTEM = `You write a short, factual answer to a question about Pen
 Rules:
 - 1-4 sentences of plain prose for a state DOT program manager. No markdown, no bullet points.
 - Every number must come from the result rows. Do not invent or estimate numbers. Round sensibly.
-- If the result is empty or does not answer the question, say so plainly.
+- If the result has 0 rows, say only that the query returned no rows; do not draw conclusions from an empty result.
+- If the result does not answer the question, say so plainly.
 - Mention caveats from these rules only when relevant: data ends 2025-03-31; Tesla (Aston) reports no failed sessions; monthly_port uptime_pct ignores excluded outages.
 Return ONLY JSON: {"answer": "<text>", "chart": {"type": "bar"|"line"|"none", "x": "<column>", "y": ["<numeric column>", ...]}}`;
 
@@ -65,7 +74,7 @@ function parseJSON(text) {
   return JSON.parse(s.slice(a, b + 1));
 }
 
-async function llm(env, system, user, maxTokens = 900) {
+async function llm(env, system, user, maxTokens = 900, opts = {}) {
   if (env.ANTHROPIC_API_KEY) {
     const model = env.ANTHROPIC_MODEL || "claude-sonnet-5-5";
     const r = await fetch("https://api.anthropic.com/v1/messages", {
@@ -78,12 +87,27 @@ async function llm(env, system, user, maxTokens = 900) {
     return { text: j.content.map((c) => c.text || "").join(""), model };
   }
   if (!env.AI) throw new Error("No model configured: add the Workers AI binding named AI, or an ANTHROPIC_API_KEY secret.");
-  const model = env.WORKERS_AI_MODEL || "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
+  const model = (opts.model && WORKERS_AI_MODELS.includes(opts.model)) ? opts.model : (env.WORKERS_AI_MODEL || DEFAULT_MODEL);
   const out = await env.AI.run(model, {
     messages: [{ role: "system", content: system }, { role: "user", content: user }],
     max_tokens: maxTokens, temperature: 0,
   });
-  return { text: out?.response ?? out, model: model.replace(/^@cf\//, "") };
+  return { text: extractText(out), model: model.replace(/^@cf\//, "") };
+}
+
+// Workers AI models differ in response shape (messages vs. OpenAI chat vs. Responses API).
+function extractText(out) {
+  if (out == null) return "";
+  if (typeof out === "string") return out;
+  if (out.response != null) return typeof out.response === "string" ? out.response : JSON.stringify(out.response);
+  if (out.choices?.[0]?.message?.content) return out.choices[0].message.content;
+  if (out.output_text) return out.output_text;
+  if (Array.isArray(out.output)) {
+    const parts = [];
+    for (const o of out.output) for (const c of o.content || []) if (c.type === "output_text" || c.text) parts.push(c.text);
+    if (parts.length) return parts.join("");
+  }
+  return JSON.stringify(out);
 }
 
 export default {
@@ -109,7 +133,7 @@ export default {
         let prompt = `Question: ${question}`;
         if (body.previous_sql && body.error)
           prompt += `\n\nYour previous SQL failed.\nSQL:\n${String(body.previous_sql).slice(0, 4000)}\nError:\n${String(body.error).slice(0, 1000)}\nReturn corrected JSON.`;
-        const { text, model } = await llm(env, SQL_SYSTEM, prompt, 900);
+        const { text, model } = await llm(env, SQL_SYSTEM, prompt, 1200, { model: body.model });
         const out = parseJSON(text);
         console.log(JSON.stringify({ user, kind: "sql", question, model, sql: out.sql }));
         return json({ sql: out.sql ? String(out.sql).trim().replace(/;\s*$/, "") : null, explanation: out.explanation || "", model }, 200, h);
@@ -120,7 +144,7 @@ export default {
         const prompt = `Question: ${question}\n\nSQL that was run:\n${String(body.sql || "").slice(0, 4000)}\n\n` +
           `Result: ${body.row_count ?? rows.length} rows${rows.length < (body.row_count ?? 0) ? ` (first ${rows.length} shown)` : ""}\n` +
           `Columns: ${JSON.stringify(columns)}\nRows: ${JSON.stringify(rows).slice(0, 12000)}`;
-        const { text, model } = await llm(env, ANSWER_SYSTEM, prompt, 600);
+        const { text, model } = await llm(env, ANSWER_SYSTEM, prompt, 800, { model: body.model });
         const out = parseJSON(text);
         console.log(JSON.stringify({ user, kind: "answer", question, model }));
         return json({ answer: String(out.answer || ""), chart: out.chart || null, model }, 200, h);
