@@ -22,6 +22,8 @@ browser: sign in ─► decrypt bundle (WebCrypto) ─► DuckDB-WASM ─► eve
 - **Encrypted.** The repo is public but the data file is ciphertext. Each user has their own
   username and password, and each unlocks a wrapped copy of one data key, so users can be added or removed
   without touching anyone else's access.
+- **Downloads.** An analysis workbook (13 sheets) and a two-page executive summary (Word / PDF) are generated in the browser
+  from the decrypted aggregates. The summary is written by code from query results, not by a language model.
 - **Verifiable answers.** The language model never sees the tables, only the schema and the rows of the
   query it wrote. Every answer shows its SQL.
 
@@ -32,6 +34,7 @@ browser: sign in ─► decrypt bundle (WebCrypto) ─► DuckDB-WASM ─► eve
 | `pipeline/build.py` | Cleans raw Module 2/3/4 CSVs + PennDOT summary workbook into aggregated tables |
 | `pipeline/semantic.py` | Data dictionary + business rules; feeds the Data notes page and the LLM prompt |
 | `pipeline/encrypt.py` | Builds the encrypted bundle and the Worker access tokens |
+| `raw/awards/` | PennDOT NEVI award inventory export (git-ignored; drop a newer export here and rebuild) |
 | `site/` | The static dashboard (published to GitHub Pages) |
 | `worker/` | Cloudflare Worker for "Ask the data" |
 

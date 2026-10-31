@@ -145,6 +145,50 @@ st["n_ports"] = st.station_id.map(ports_all.groupby("station_id").size()).fillna
 cov = s.groupby("station_id").agg(first_session_date=("date", "min"), last_session_date=("date", "max"))
 st = st.merge(cov, left_on="station_id", right_index=True, how="left")
 st["has_session_data"] = st.first_session_date.notna()
+# --------------------------------------------------------------------------------------
+# Awarded-station inventory (PennDOT NEVI GIS export). Link each roster station to its award
+# record: same city, matching operator/host keyword, nearest by distance.
+# --------------------------------------------------------------------------------------
+AWARD_KEY = {"62241": "pilot", "PA-EMLENTON-00001": "6406", "35027": "tesla", "PA-JONESTOWN-00001": "love",
+             "PA-SLIPPERYROCK-00001": "love", "221": "francis", "222": "francis", "231": "francis",
+             "76801": "pilot", "77602": "pilot", "PA-MIFFLINVILLE-00001": "love", "26704": "tesla",
+             "PA-BROOKVILLE-00001": "love"}
+aw_files = sorted(glob.glob(str(RAW / "awards" / "*.xlsx")))
+aw = pd.read_excel(aw_files[-1]) if aw_files else pd.DataFrame()
+if len(aw):
+    aw = aw.rename(columns=str.lower)
+    for c in ["organization_name", "site_host", "county", "city", "funding_round", "project_type", "highway", "exit",
+              "electric_distribution_company", "status", "notes", "planning_partner"]:
+        aw[c] = aw[c].astype("string").str.strip().replace({"": pd.NA})
+    aw["award_id"] = range(1, len(aw) + 1)
+    aw["station_id"] = pd.NA
+    for sid, key in AWARD_KEY.items():
+        r = st[st.station_id == sid].iloc[0]
+        cand = aw[(aw.city.str.lower() == r.city.lower()) &
+                  (aw.organization_name.str.lower().str.contains(key) | aw.site_host.str.lower().str.contains(key))]
+        if cand.empty:
+            continue
+        d = np.hypot((cand.latitude - r.lat) * 111, (cand.longitude - r.lon) * 85)
+        aw.loc[d.idxmin(), "station_id"] = sid
+    linked = aw.dropna(subset=["station_id"]).set_index("station_id")
+    # precise coordinates + award attributes for roster stations
+    st["lat"] = st.station_id.map(linked.latitude).fillna(st.lat)
+    st["lon"] = st.station_id.map(linked.longitude).fillna(st.lon)
+    for c in ["funding_round", "highway", "exit", "county", "award_amount", "penndot_district"]:
+        st[c] = st.station_id.map(linked[c])
+    assert st.funding_round.notna().all(), "unmatched roster station in award file"
+    aw["has_session_data"] = aw.station_id.isin(set(s.station_id))
+    awarded = aw[["award_id", "station_id", "has_session_data", "organization_name", "site_host", "city", "county",
+                  "latitude", "longitude", "funding_round", "project_type", "status", "highway", "exit",
+                  "nevi_dc_ports", "total_dc_ports", "nevi_l2_ports", "total_l2_ports", "award_amount",
+                  "electric_distribution_company", "penndot_district", "planning_partner", "notes"]].copy()
+    awarded["station_id"] = awarded.station_id.astype("string")
+    for c in ["nevi_dc_ports", "total_dc_ports", "nevi_l2_ports", "total_l2_ports", "penndot_district"]:
+        awarded[c] = pd.to_numeric(awarded[c], errors="coerce").astype("Int64")
+    AWARD_SOURCE = os.path.basename(aw_files[-1])
+else:
+    awarded, AWARD_SOURCE = None, None
+
 st = st.sort_values("operational_date").reset_index(drop=True)
 st.insert(0, "station_order", range(1, len(st) + 1))
 NAME = dict(zip(st.station_id, st.station_name))
@@ -376,6 +420,7 @@ TABLES = {
     "failures_quarterly": errs, "payments_quarterly": pay, "session_distribution": dist,
     "quarterly_station": qs, "quarterly_reported": rep, "outage_events": outage_events,
     "port_uptime_reported": pur,
+    **({"awarded_stations": awarded} if awarded is not None else {}),
 }
 con = duckdb.connect()
 for name, df in TABLES.items():
@@ -404,6 +449,7 @@ meta = {
     "data_start": str(s.date.min()), "data_end": str(s.date.max()),
     "n_sessions_raw": int(len(s)), "n_stations_with_data": int(st.has_session_data.sum()),
     "n_stations_roster": int(len(st)),
+    "award_source": AWARD_SOURCE, "n_awarded": int(len(awarded)) if awarded is not None else 0,
 }
 json.dump(meta, open(OUT / "meta.json", "w"), indent=1)
 print(meta)

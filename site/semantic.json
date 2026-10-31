@@ -51,12 +51,12 @@
     {
      "name": "lat",
      "type": "DOUBLE",
-     "desc": "Approximate latitude"
+     "desc": "Latitude (from PennDOT's award inventory)"
     },
     {
      "name": "lon",
      "type": "DOUBLE",
-     "desc": "Approximate longitude"
+     "desc": "Longitude"
     },
     {
      "name": "interstate",
@@ -82,6 +82,156 @@
      "name": "has_session_data",
      "type": "BOOLEAN",
      "desc": "FALSE for stations that opened after the data cut-off (Mifflinville, New Castle, Brookville)"
+    },
+    {
+     "name": "funding_round",
+     "type": "VARCHAR",
+     "desc": "NEVI funding round, e.g. 'AFC Round 1'"
+    },
+    {
+     "name": "highway",
+     "type": "VARCHAR",
+     "desc": "Highway(s) served"
+    },
+    {
+     "name": "exit",
+     "type": "VARCHAR",
+     "desc": "Exit number(s)"
+    },
+    {
+     "name": "county",
+     "type": "VARCHAR",
+     "desc": "County"
+    },
+    {
+     "name": "award_amount",
+     "type": "DOUBLE",
+     "desc": "NEVI award in US dollars"
+    },
+    {
+     "name": "penndot_district",
+     "type": "BIGINT",
+     "desc": "PennDOT engineering district (1-12)"
+    }
+   ]
+  },
+  "awarded_stations": {
+   "grain": "one row per NEVI/AFC award site in PennDOT's program inventory (GIS export of Oct 29, 2026; 207 sites). Inventory only - no usage data. Only rows with has_session_data = TRUE (10 sites) have charging data in the other tables, and that data ends 2025-03-31",
+   "columns": [
+    {
+     "name": "award_id",
+     "type": "BIGINT",
+     "desc": "Row id"
+    },
+    {
+     "name": "station_id",
+     "type": "VARCHAR",
+     "desc": "Links to stations.station_id for the 13 roster stations; NULL otherwise"
+    },
+    {
+     "name": "has_session_data",
+     "type": "BOOLEAN",
+     "desc": "TRUE when session/uptime data exists in this dashboard"
+    },
+    {
+     "name": "organization_name",
+     "type": "VARCHAR",
+     "desc": "Awardee / operator organization"
+    },
+    {
+     "name": "site_host",
+     "type": "VARCHAR",
+     "desc": "Host business (e.g. Sheetz, Wawa)"
+    },
+    {
+     "name": "city",
+     "type": "VARCHAR",
+     "desc": ""
+    },
+    {
+     "name": "county",
+     "type": "VARCHAR",
+     "desc": ""
+    },
+    {
+     "name": "latitude",
+     "type": "DOUBLE",
+     "desc": ""
+    },
+    {
+     "name": "longitude",
+     "type": "DOUBLE",
+     "desc": ""
+    },
+    {
+     "name": "funding_round",
+     "type": "VARCHAR",
+     "desc": "'AFC Round 1', 'AFC Round 1A', 'AFC Round 1B', 'Corridor Connections', 'Community - Southeastern', 'EVC-RAA Round 1', 'EVC-RAA Round 1A', or 'AFC Creditable' (existing NEVI-compliant station counted toward corridor build-out, no NEVI award)"
+    },
+    {
+     "name": "project_type",
+     "type": "VARCHAR",
+     "desc": "'Highway Corridor', 'Community - DC Fast', 'Community - Level 2'"
+    },
+    {
+     "name": "status",
+     "type": "VARCHAR",
+     "desc": "'Operational', 'In Progress', 'Planned'"
+    },
+    {
+     "name": "highway",
+     "type": "VARCHAR",
+     "desc": ""
+    },
+    {
+     "name": "exit",
+     "type": "VARCHAR",
+     "desc": ""
+    },
+    {
+     "name": "nevi_dc_ports",
+     "type": "BIGINT",
+     "desc": "NEVI-funded DC fast ports"
+    },
+    {
+     "name": "total_dc_ports",
+     "type": "BIGINT",
+     "desc": "All DC fast ports at the site"
+    },
+    {
+     "name": "nevi_l2_ports",
+     "type": "BIGINT",
+     "desc": "NEVI-funded Level 2 ports"
+    },
+    {
+     "name": "total_l2_ports",
+     "type": "BIGINT",
+     "desc": "All Level 2 ports"
+    },
+    {
+     "name": "award_amount",
+     "type": "DOUBLE",
+     "desc": "US dollars; NULL for AFC Creditable sites"
+    },
+    {
+     "name": "electric_distribution_company",
+     "type": "VARCHAR",
+     "desc": "Utility"
+    },
+    {
+     "name": "penndot_district",
+     "type": "BIGINT",
+     "desc": "PennDOT engineering district"
+    },
+    {
+     "name": "planning_partner",
+     "type": "VARCHAR",
+     "desc": "MPO/RPO"
+    },
+    {
+     "name": "notes",
+     "type": "VARCHAR",
+     "desc": ""
     }
    ]
   },
@@ -577,7 +727,8 @@
   }
  },
  "rules": [
-  "Data covers 2023-12-22 to 2025-03-31 (EV-ChART quarterly submissions through 2025 Q1). Say so if a question asks about later dates.",
+  "Charging data covers 2023-12-22 to 2025-03-31 (EV-ChART quarterly submissions through 2025 Q1) for 10 stations. Say so if a question asks about later dates or other stations.",
+  "awarded_stations is the program inventory (207 award sites, status as of Oct 2026). Use it for questions about awards, funding, counts by status/round/county/district; it has no usage data.",
   "Successful session = no error code AND >= 1 kWh delivered. Failed = everything else.",
   "NEVI uptime requirement (23 CFR 680.116): each port >= 97% over a trailing 12 months, with excluded outages removed. Use port_uptime_reported.uptime_nevi_pct for compliance; monthly_port.uptime_pct is a raw lower bound.",
   "NEVI minimum power: 150 kW per port simultaneously. Session power is limited by the vehicle as well as the charger, so median session power below 150 kW is NOT by itself a violation.",
@@ -599,6 +750,10 @@
   {
    "q": "What are the main failure causes at Francis Energy stations?",
    "sql": "SELECT s.station_name, f.failure_type, SUM(f.sessions) AS sessions\nFROM failures_quarterly f JOIN stations s USING (station_id)\nWHERE s.network_operator = 'Francis Energy' GROUP BY ALL ORDER BY s.station_name, sessions DESC"
+  },
+  {
+   "q": "How many awarded sites are operational in each funding round, and how much was awarded?",
+   "sql": "SELECT funding_round, COUNT(*) AS sites, COUNT(*) FILTER (WHERE status = 'Operational') AS operational,\n  SUM(award_amount) AS award_usd FROM awarded_stations GROUP BY ALL ORDER BY sites DESC"
   },
   {
    "q": "Busiest hour of the week at Aston",

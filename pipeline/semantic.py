@@ -23,11 +23,31 @@ TABLES = {
             "network_operator": "Charging network: EVgo, ChargePoint, Tesla, Francis Energy",
             "address": "Street address", "city": "City",
             "operational_date": "Date the station opened", "om_end_date": "End of the 5-year O&M obligation",
-            "lat": "Approximate latitude", "lon": "Approximate longitude",
+            "lat": "Latitude (from PennDOT's award inventory)", "lon": "Longitude",
+            "funding_round": "NEVI funding round, e.g. 'AFC Round 1'", "highway": "Highway(s) served", "exit": "Exit number(s)",
+            "county": "County", "award_amount": "NEVI award in US dollars", "penndot_district": "PennDOT engineering district (1-12)",
             "interstate": "Nearest Alternative Fuel Corridor interstate",
             "n_ports": "Number of charging ports (all stations have 4)",
             "first_session_date": "First session in the data", "last_session_date": "Last session in the data",
             "has_session_data": "FALSE for stations that opened after the data cut-off (Mifflinville, New Castle, Brookville)",
+        },
+    },
+    "awarded_stations": {
+        "grain": "one row per NEVI/AFC award site in PennDOT's program inventory (GIS export of Oct 29, 2026; 207 sites). Inventory only - no usage data. Only rows with has_session_data = TRUE (10 sites) have charging data in the other tables, and that data ends 2025-03-31",
+        "columns": {
+            "award_id": "Row id", "station_id": "Links to stations.station_id for the 13 roster stations; NULL otherwise",
+            "has_session_data": "TRUE when session/uptime data exists in this dashboard",
+            "organization_name": "Awardee / operator organization", "site_host": "Host business (e.g. Sheetz, Wawa)",
+            "city": "", "county": "", "latitude": "", "longitude": "",
+            "funding_round": "'AFC Round 1', 'AFC Round 1A', 'AFC Round 1B', 'Corridor Connections', 'Community - Southeastern', 'EVC-RAA Round 1', 'EVC-RAA Round 1A', or 'AFC Creditable' (existing NEVI-compliant station counted toward corridor build-out, no NEVI award)",
+            "project_type": "'Highway Corridor', 'Community - DC Fast', 'Community - Level 2'",
+            "status": "'Operational', 'In Progress', 'Planned'",
+            "highway": "", "exit": "",
+            "nevi_dc_ports": "NEVI-funded DC fast ports", "total_dc_ports": "All DC fast ports at the site",
+            "nevi_l2_ports": "NEVI-funded Level 2 ports", "total_l2_ports": "All Level 2 ports",
+            "award_amount": "US dollars; NULL for AFC Creditable sites",
+            "electric_distribution_company": "Utility", "penndot_district": "PennDOT engineering district",
+            "planning_partner": "MPO/RPO", "notes": "",
         },
     },
     "daily_station": {
@@ -116,7 +136,8 @@ TABLES = {
 }
 
 RULES = [
-    "Data covers 2023-12-22 to 2025-03-31 (EV-ChART quarterly submissions through 2025 Q1). Say so if a question asks about later dates.",
+    "Charging data covers 2023-12-22 to 2025-03-31 (EV-ChART quarterly submissions through 2025 Q1) for 10 stations. Say so if a question asks about later dates or other stations.",
+    "awarded_stations is the program inventory (207 award sites, status as of Oct 2026). Use it for questions about awards, funding, counts by status/round/county/district; it has no usage data.",
     "Successful session = no error code AND >= 1 kWh delivered. Failed = everything else.",
     "NEVI uptime requirement (23 CFR 680.116): each port >= 97% over a trailing 12 months, with excluded outages removed. Use port_uptime_reported.uptime_nevi_pct for compliance; monthly_port.uptime_pct is a raw lower bound.",
     "NEVI minimum power: 150 kW per port simultaneously. Session power is limited by the vehicle as well as the charger, so median session power below 150 kW is NOT by itself a violation.",
@@ -138,6 +159,9 @@ EXAMPLES = [
      "SELECT s.station_name, f.failure_type, SUM(f.sessions) AS sessions\n"
      "FROM failures_quarterly f JOIN stations s USING (station_id)\n"
      "WHERE s.network_operator = 'Francis Energy' GROUP BY ALL ORDER BY s.station_name, sessions DESC"),
+    ("How many awarded sites are operational in each funding round, and how much was awarded?",
+     "SELECT funding_round, COUNT(*) AS sites, COUNT(*) FILTER (WHERE status = 'Operational') AS operational,\n"
+     "  SUM(award_amount) AS award_usd FROM awarded_stations GROUP BY ALL ORDER BY sites DESC"),
     ("Busiest hour of the week at Aston",
      "SELECT day_of_week, hour, SUM(sessions) AS sessions FROM hourly_profile h JOIN stations s USING (station_id)\n"
      "WHERE s.station_name = 'Aston' GROUP BY ALL ORDER BY sessions DESC LIMIT 5"),
