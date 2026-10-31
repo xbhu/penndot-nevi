@@ -676,7 +676,9 @@ const Ask = {
       }
       if (err) throw new Error(`The query failed to run: ${err}`);
       $(".a", box).innerHTML = `<span class="spin"></span>Reading ${rows.length} rows…`;
-      const a = await api("/answer", { question, sql, columns, rows: rows.slice(0, 60), row_count: rows.length });
+      let a;
+      try { a = await api("/answer", { question, sql, columns, rows: rows.slice(0, 60), row_count: rows.length }); }
+      catch (x) { a = { answer: `The query returned ${rows.length} row${rows.length === 1 ? "" : "s"} (shown below), but the written summary could not be generated this time. Try asking again.`, model }; }
       const spec = autoChart(a.chart, columns, rows);
       box.innerHTML = `<div class="q">${esc(question)}</div>
         <p class="a">${esc(a.answer)}</p>${spec ? `<div class="chart" style="margin-top:12px"></div>` : ""}

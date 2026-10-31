@@ -37,7 +37,8 @@ Instructions:
 const ANSWER_SYSTEM = `You write a short, factual answer to a question about Pennsylvania NEVI charging stations, using ONLY the query result provided.
 
 Rules:
-- 1-4 sentences of plain prose for a state DOT program manager. No markdown, no bullet points.
+- 1-3 sentences, at most 70 words, plain prose for a state DOT program manager. No markdown, no bullet points.
+- When there are many rows, summarize (totals, extremes, the top few) instead of listing every row; the full table is shown to the user.
 - Every number must come from the result rows. Do not invent or estimate numbers. Round sensibly.
 - If the result has 0 rows, say only that the query returned no rows; do not draw conclusions from an empty result.
 - If the result does not answer the question, say so plainly.
@@ -110,6 +111,22 @@ function extractText(out) {
   return JSON.stringify(out);
 }
 
+// Reasoning models occasionally return truncated or non-JSON text: retry once, then fall back.
+async function llmJSON(env, system, user, maxTokens, opts, fallbackKey) {
+  let last;
+  for (let i = 0; i < 2; i++) {
+    const { text, model } = await llm(env, system, user, maxTokens, opts);
+    try { return { out: parseJSON(text), model }; }
+    catch (e) {
+      last = { text, model };
+      const m = fallbackKey && /"answer"\s*:\s*"((?:[^"\\]|\\.)*)/.exec(String(text || ""));
+      if (m) return { out: { answer: JSON.parse(`"${m[1]}"`) + (/"\s*,\s*"chart"/.test(text) ? "" : " …"), chart: null }, model };
+    }
+  }
+  if (fallbackKey && last?.text && !String(last.text).trim().startsWith("{")) return { out: { answer: String(last.text).trim().slice(0, 800), chart: null }, model: last.model };
+  throw new Error("model did not return JSON");
+}
+
 export default {
   async fetch(req, env) {
     const h = cors(req, env);
@@ -133,8 +150,7 @@ export default {
         let prompt = `Question: ${question}`;
         if (body.previous_sql && body.error)
           prompt += `\n\nYour previous SQL failed.\nSQL:\n${String(body.previous_sql).slice(0, 4000)}\nError:\n${String(body.error).slice(0, 1000)}\nReturn corrected JSON.`;
-        const { text, model } = await llm(env, SQL_SYSTEM, prompt, 1200, { model: body.model });
-        const out = parseJSON(text);
+        const { out, model } = await llmJSON(env, SQL_SYSTEM, prompt, 3000, { model: body.model });
         console.log(JSON.stringify({ user, kind: "sql", question, model, sql: out.sql }));
         return json({ sql: out.sql ? String(out.sql).trim().replace(/;\s*$/, "") : null, explanation: out.explanation || "", model }, 200, h);
       }
@@ -144,8 +160,7 @@ export default {
         const prompt = `Question: ${question}\n\nSQL that was run:\n${String(body.sql || "").slice(0, 4000)}\n\n` +
           `Result: ${body.row_count ?? rows.length} rows${rows.length < (body.row_count ?? 0) ? ` (first ${rows.length} shown)` : ""}\n` +
           `Columns: ${JSON.stringify(columns)}\nRows: ${JSON.stringify(rows).slice(0, 12000)}`;
-        const { text, model } = await llm(env, ANSWER_SYSTEM, prompt, 800, { model: body.model });
-        const out = parseJSON(text);
+        const { out, model } = await llmJSON(env, ANSWER_SYSTEM, prompt, 2500, { model: body.model }, "answer");
         console.log(JSON.stringify({ user, kind: "answer", question, model }));
         return json({ answer: String(out.answer || ""), chart: out.chart || null, model }, 200, h);
       }
