@@ -7,7 +7,7 @@ workers_dev = true
 binding = "AI"
 
 [vars]
-ALLOWED_ORIGINS = "https://xbhu.github.io"
+ALLOWED_ORIGINS = "https://nevi.mobilitypsu.com,https://xbhu.github.io"
 # ANTHROPIC_MODEL = "claude-sonnet-5-5"
 # WORKERS_AI_MODEL = "@cf/openai/gpt-oss-120b"
 

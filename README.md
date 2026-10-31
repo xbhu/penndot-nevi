@@ -4,7 +4,7 @@ A demonstration dashboard for Pennsylvania's NEVI-funded fast-charging stations,
 [Smart Mobility Lab](https://lab.mobilitypsu.com/) at Penn State from EV-ChART quarterly
 submissions shared by PennDOT. Not an official PennDOT product.
 
-**Live site:** https://xbhu.github.io/penndot-nevi/ (sign-in required)
+**Live site:** https://nevi.mobilitypsu.com/ (sign-in required)
 
 ## How it works
 
