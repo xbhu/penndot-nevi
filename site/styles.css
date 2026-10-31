@@ -131,6 +131,9 @@ tr.click { cursor: pointer; } tr.click:hover td { background: var(--page); }
 /* ---------- map ---------- */
 .map { height: 420px; border-radius: 8px; overflow: hidden; background: var(--page); }
 .leaflet-container { font: inherit; background: var(--page); }
+.leaflet-tile-pane { filter: grayscale(1) contrast(0.85) brightness(1.06); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .leaflet-tile-pane { filter: grayscale(1) invert(1) brightness(0.75) contrast(0.9); } }
+:root[data-theme="dark"] .leaflet-tile-pane { filter: grayscale(1) invert(1) brightness(0.75) contrast(0.9); }
 .leaflet-popup-content { font-size: 14px; line-height: 1.45; margin: 10px 14px; }
 .leaflet-popup-content b { font-size: 15px; }
 

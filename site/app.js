@@ -200,10 +200,9 @@ ORDER BY s.station_order`,
     render: (rows, body) => {
       body.innerHTML = `<div class="map" id="map" role="img" aria-label="Map of NEVI stations in Pennsylvania"></div>` +
         legendHTML([["Meets 97%", css("--good")], ["90–97%", css("--warn")], ["Below 90%", css("--crit")], ["Not reporting yet", css("--none")]]);
-      const dark = matchMedia("(prefers-color-scheme: dark)").matches;
       const map = L.map($("#map", body), { scrollWheelZoom: false, attributionControl: true }).setView([40.95, -77.6], 7);
-      L.tileLayer(`https://{s}.basemaps.cartocdn.com/${dark ? "dark_all" : "light_all"}/{z}/{x}/{y}{r}.png`, {
-        maxZoom: 12, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 12, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       }).addTo(map);
       const pts = [];
       rows.forEach((r) => {
